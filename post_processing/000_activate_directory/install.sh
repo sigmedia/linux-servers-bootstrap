@@ -3,30 +3,18 @@
 ## Automatisation of the process described in https://wiki.archlinux.org/title/Active_Directory_integration
 
 # 1. Configure resolv, ntp, samba, kerberos and nsswitch
-if [ -f /etc/resolv.conf ]; then
-    cp /etc/resolv.conf /etc/resolv.conf.backup
-fi
-cp templates/resolv.conf /etc/
-
-if [ -f /etc/ntp.conf ]; then
-    cp /etc/ntp.conf /etc/ntp.conf.backup
-fi
-cp templates/ntp.conf /etc/
+templates=(ntp.conf resolv.conf krb5.conf nsswitch.conf)
+for template in ${templates[@]}; do
+    if [ -f /etc/${template} ]; then
+        cp /etc/${template} /etc/${template}.backup
+    fi
+    cp templates/${template} /etc/
+done
 
 if [ -f /etc/samba/smb.conf ]; then
     cp /etc/samba/smb.conf /etc/samba/smb.conf.backup
 fi
 cp templates/smb.conf /etc/samba/
-
-if [ -f /etc/krb5.conf ]; then
-    cp /etc/krb5.conf /etc/krb5.conf.backup
-fi
-cp templates/krb5.conf /etc/
-
-if [ -f /etc/nsswitch.conf ]; then
-    cp /etc/nsswitch.conf /etc/nsswitch.conf.backup
-fi
-cp templates/nsswitch.conf /etc/
 
 # 2. Configure PAM
 #   - General WinBind configuration
@@ -93,5 +81,4 @@ systemctl start winbind.service
 systemctl enable ntpd
 systemctl start ntp
 
-systemctl enable sshd
-systemctl start sshd
+systemctl restart sshd
