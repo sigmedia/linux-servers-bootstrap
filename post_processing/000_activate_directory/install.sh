@@ -2,7 +2,11 @@
 
 ## Automatisation of the process described in https://wiki.archlinux.org/title/Active_Directory_integration
 
-# 1. Configure resolv, ntp, samba, kerberos and nsswitch
+echo "==========================================================="
+echo "## Install Active Directory Support"
+echo "==========================================================="
+
+# 1. Configure resolv, ntp, samba, kerberos and nsswitch and update dhcpcd
 templates=(ntp.conf resolv.conf krb5.conf nsswitch.conf)
 for template in ${templates[@]}; do
     if [ -f /etc/${template} ]; then
@@ -10,6 +14,15 @@ for template in ${templates[@]}; do
     fi
     cp templates/${template} /etc/
 done
+
+# Disable dhcpcd to overwrite /etc/resolv.conf
+systemctl stop dhcpcd
+echo "
+
+# Don't overwrite /etc/resolv.conf
+nohook resolv.conf
+" >> /etc/dhcpcd.conf
+systemctl start dhcpcd
 
 if [ -f /etc/samba/smb.conf ]; then
     cp /etc/samba/smb.conf /etc/samba/smb.conf.backup
@@ -27,39 +40,25 @@ cp templates/pam_winbind.conf /etc/security/
 if [ -f /etc/pam.d/system-auth ]; then
     cp /etc/pam.d/system-auth /etc/pam.d/system-auth.backup
 fi
-sed -i '/^auth[ \t]*required[ \t]*pam_unix.so/i auth\tsufficient\tpam_winbind.so' /etc/pam.d/system-auth
+sed -i '/^auth[ \t].*pam_unix.so/i auth\tsufficient\tpam_winbind.so' /etc/pam.d/system-auth
 sed -i '/^account[ \t]*required[ \t]*pam_unix.so/i account\tsufficient\tpam_winbind.so' /etc/pam.d/system-auth
 sed -i '/^password[ \t]*required[ \t]*pam_unix.so/i password\tsufficient\tpam_winbind.so' /etc/pam.d/system-auth
 sed -i '/^session[ \t]*required[ \t]*pam_unix.so/i session\tsufficient\tpam_winbind.so' /etc/pam.d/system-auth
 
-# #   - Adapt user change (/etc/pam.d/su) [FIXME: May not be useful]
-# if [ -f /etc/pam.d/su ]; then
-#     cp /etc/pam.d/su /etc/pam.d/su.backup
-# fi
-# sed -i '/^auth[ \t]*required[ \t]*pam_unix.so/i auth\tsufficient\tpam_winbind.so' /etc/pam.d/su
-# sed -i '/^account[ \t]*required[ \t]*pam_unix.so/i account\tsufficient\tpam_winbind.so' /etc/pam.d/su
-# sed -i '/^password[ \t]*required[ \t]*pam_unix.so/i password\tsufficient\tpam_winbind.so' /etc/pam.d/su
-# sed -i '/^session[ \t]*required[ \t]*pam_unix.so/i session\tsufficient\tpam_winbind.so' /etc/pam.d/su
+#   - Adapt user change (/etc/pam.d/su)
+if [ -f /etc/pam.d/su ]; then
+    cp /etc/pam.d/su /etc/pam.d/su.backup
+fi
+sed -i '/^auth[ \t]*required[ \t]*pam_unix.so/i auth\tsufficient\tpam_winbind.so' /etc/pam.d/su
+sed -i '/^account[ \t]*required[ \t]*pam_unix.so/i account\tsufficient\tpam_winbind.so' /etc/pam.d/su
+sed -i '/^password[ \t]*required[ \t]*pam_unix.so/i password\tsufficient\tpam_winbind.so' /etc/pam.d/su
+sed -i '/^session[ \t]*required[ \t]*pam_unix.so/i session\tsufficient\tpam_winbind.so' /etc/pam.d/su
 
-# 3. Configure SSH
+# 3. Update SSH
 if [ -f /etc/ssh/sshd_config ]; then
     cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup
 fi
-
-echo "
-# Change to no to disable s/key passwords
-ChallengeResponseAuthentication no
-
-# Kerberos options
-KerberosAuthentication yes
-#KerberosOrLocalPasswd yes
-KerberosTicketCleanup yes
-KerberosGetAFSToken yes
-
-# GSSAPI options
-GSSAPIAuthentication yes
-GSSAPICleanupCredentials yes
-" | tee -a /etc/ssh/sshd_config > /dev/null
+sed -i 's/^#\(KerberosAuthentication\|KerberosTicketCleanup\|KerberosGetAFSToken\|GSSAPIAuthentication\|GSSAPICleanupCredentials\)/\1/g' /etc/ssh/sshd_config
 
 # 4. Configure SUDO
 if [ -f /etc/sudoers ]; then
@@ -68,17 +67,12 @@ fi
 sed -i 's/^#[ \t]*%sudo/%sudo/g' /etc/sudoers
 sed -i '/^%sudo/i %supermedia ALL=(ALL) ALL' /etc/sudoers
 
-# 5. Start services
-systemctl enable smb.service
-systemctl start smb.service
+# 6. Start/Restart services
+services_to_start=(ntpd smb winbind) # See for nmb
+for service in ${services_to_start[@]}; do
+    systemctl enable $service
+done
 
-systemctl enable nmb.service
-systemctl start nmb.service
 
-systemctl enable winbind.service
-systemctl start winbind.service
-
-systemctl enable ntpd
-systemctl start ntp
-
-systemctl restart sshd
+# 7. Join the domain
+net ads join -U lemagues
