@@ -57,8 +57,8 @@ for service in ${services_to_start[@]}; do
     systemctl enable $service
 done
 
-
 # Define root passwd
 echo "==========================================================="
 echo "## Define the root password"
 echo "==========================================================="
+passwd
