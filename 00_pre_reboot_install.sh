@@ -1,12 +1,12 @@
 #!/bin/bash
 
 if [ $# != 2 ]; then
-    echo "cmd: $0 <hostname> <hd_dev_path>"
+    echo "cmd: $0 <hostname> <hd_dev_path/efi_mounted_path>"
     exit -1
 fi
 
 HOSTNAME=$1
-BOOT_HD=$2
+GRUB_TARGET_PATH=$2
 
 # Update the system and install packages
 echo "==========================================================="
@@ -43,7 +43,12 @@ cp ./templates/20-ethernet.network /etc/systemd/network
 echo "==========================================================="
 echo "## Configure bootloader"
 echo "==========================================================="
-grub-install $BOOT_HD
+if [ -d /sys/firmware/efi ]; then
+    pacman -S --noconfirm efibootmgr
+    grub-install --target=x86_64-efi --efi-directory=$GRUB_TARGET_PATH --bootloader-id=GRUB
+else
+    grub-install $GRUB_TARGET_PATH
+fi
 grub-mkconfig -o /boot/grub/grub.cfg
 mkinitcpio -P
 
