@@ -73,6 +73,5 @@ for service in ${services_to_start[@]}; do
     systemctl enable $service
 done
 
-
 # 7. Join the domain
-net ads join -U lemagues
+net ads join -U sigmediauser
