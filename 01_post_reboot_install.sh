@@ -7,7 +7,15 @@ echo "==========================================================="
 pacman -Syu
 pacman -S --noconfirm $(grep -v "^\(^#.*\|[ \t]*\)$" packages/post_boot.conf | sed 's/[ ]*#.*//g' | tr '\n' ' ')
 
+echo "==========================================================="
+echo "## Run the post processing steps"
+echo "==========================================================="
 # Achieve post processing
 for i in $(ls -d post_processing/*); do
     (cd $i; bash install.sh)
 done
+
+
+echo "/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\"
+echo "It is recommanded to reboot a last time"
+echo "/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\/!\\"
