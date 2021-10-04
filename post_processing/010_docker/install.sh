@@ -9,4 +9,4 @@ sed -i 's%\[Unit\]%[Unit]\nAfter=network.target winbind.service%g' /usr/lib/syst
 sed -i 's%SocketGroup=docker%SocketGroup=supermedia%g' /usr/lib/systemd/system/docker.socket
 
 # Enable the service
-service enable docker
+systemctl enable docker
