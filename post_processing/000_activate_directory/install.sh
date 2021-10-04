@@ -67,11 +67,15 @@ fi
 sed -i 's/^#[ \t]*%sudo/%sudo/g' /etc/sudoers
 sed -i '/^%sudo/i %supermedia ALL=(ALL) ALL' /etc/sudoers
 
-# 6. Start/Restart services
+# 6. Enable services
 services_to_start=(ntpd smb winbind) # See for nmb
 for service in ${services_to_start[@]}; do
     systemctl enable $service
 done
 
+# 7. Force the clock to be set before joining the domain
+ntpd -gq
+
 # 7. Join the domain
+echo "###############################################"
 net ads join -U sigmediauser
